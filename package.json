@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "How many commits have you made since January 1? Cloudflare Pages app.",
   "scripts": {
-    "build": "rm -rf dist && cp -R public dist && esbuild src/index.ts --bundle --format=esm --target=es2022 --minify --outfile=dist/_worker.js",
+    "build": "rm -rf dist && cp -R public dist && esbuild src/index.ts --bundle --format=esm --target=es2022 --minify --outfile=dist/_worker.js && esbuild src/themes-global.ts --bundle --format=iife --target=es2020 --minify --outfile=dist/themes.js",
     "dev": "npm run build && wrangler pages dev",
     "deploy": "npm run build && wrangler pages deploy --branch main",
     "typecheck": "tsc --noEmit -p .",

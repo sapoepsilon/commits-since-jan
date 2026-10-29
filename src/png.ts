@@ -4,6 +4,7 @@
 
 import { compact, growthText, type ChartModel } from "./chart";
 import { FONTS } from "./font";
+import type { Theme } from "./themes";
 
 export const W = 1200;
 export const H = 630;
@@ -19,41 +20,40 @@ const mix = (a: string, b: string, t: number) => {
 	return A.map((v, i) => Math.round(v * t + B[i] * (1 - t))) as [number, number, number];
 };
 
-const BG = "#0d1117";
-const PANEL = "#161b22";
-const BORDER = "#30363d";
-const TEXT = "#e6edf3";
-const MUTED = "#7d8590";
-const ACCENT = "#2f81f7";
-const GRID = "#21262d";
-const BAR = "#26a641";
-const PEAK = "#39d353";
-const BAR_DIM = "#006d32";
-
 export const C = {
 	bg: 0, panel: 1, border: 2, text: 3, muted: 4, accent: 5,
 	grid: 6, bar: 7, peak: 8, barDim: 9,
 } as const;
 
-// 16-entry palette; 10-15 are anti-aliasing blends of the text colours on PANEL.
-const PALETTE: [number, number, number][] = [
-	hex(BG),
-	hex(PANEL),
-	hex(BORDER),
-	hex(TEXT),
-	hex(MUTED),
-	hex(ACCENT),
-	hex(GRID),
-	hex(BAR),
-	hex(PEAK),
-	hex(BAR_DIM),
-	mix(TEXT, PANEL, 0.33),
-	mix(TEXT, PANEL, 0.66),
-	mix(MUTED, PANEL, 0.4),
-	mix(MUTED, PANEL, 0.75),
-	mix(ACCENT, PANEL, 0.5),
-	mix(PEAK, PANEL, 0.5),
-];
+// 16-entry palette per theme; 10-15 are anti-aliasing blends on the panel.
+const palettes = new Map<string, Uint8Array>();
+function paletteFor(t: Theme) {
+	let p = palettes.get(t.name);
+	if (!p) {
+		const cols: [number, number, number][] = [
+			hex(t.bg),
+			hex(t.panel),
+			hex(t.border),
+			hex(t.text),
+			hex(t.muted),
+			hex(t.accent),
+			hex(t.grid),
+			hex(t.bar),
+			hex(t.peak),
+			hex(t.dim),
+			mix(t.text, t.panel, 0.33),
+			mix(t.text, t.panel, 0.66),
+			mix(t.muted, t.panel, 0.4),
+			mix(t.muted, t.panel, 0.75),
+			mix(t.accent, t.panel, 0.5),
+			mix(t.peak, t.panel, 0.5),
+		];
+		p = new Uint8Array(cols.length * 3);
+		cols.forEach((c, i) => p!.set(c, i * 3));
+		palettes.set(t.name, p);
+	}
+	return p;
+}
 // colour index -> palette index for alpha levels [0..3]
 const AA: Record<number, [number, number, number, number]> = {
 	[C.text]: [C.panel, 10, 11, C.text],
@@ -194,7 +194,7 @@ function chunk(type: string, data: Uint8Array) {
 	return out;
 }
 
-export async function encodePng(c: Canvas): Promise<Uint8Array> {
+export async function encodePng(c: Canvas, theme: Theme): Promise<Uint8Array> {
 	const raw = c.raw;
 	const zlib = new Uint8Array(
 		await new Response(new Blob([raw]).stream().pipeThrough(new CompressionStream("deflate"))).arrayBuffer(),
@@ -206,8 +206,7 @@ export async function encodePng(c: Canvas): Promise<Uint8Array> {
 	dv.setUint32(4, H);
 	ihdr[8] = 4; // bit depth
 	ihdr[9] = 3; // indexed colour
-	const plte = new Uint8Array(PALETTE.length * 3);
-	PALETTE.forEach((p, i) => plte.set(p, i * 3));
+	const plte = paletteFor(theme);
 
 	const parts = [
 		new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
@@ -238,7 +237,7 @@ export interface CardData {
 	host: string;
 }
 
-export async function renderCard(d: CardData): Promise<Uint8Array> {
+export async function renderCard(d: CardData, theme: Theme): Promise<Uint8Array> {
 	const cv = new Canvas();
 	cv.rect(0, 0, W, H, C.bg);
 	cv.roundRect(32, 32, W - 64, H - 64, 20, C.panel, C.border);
@@ -259,7 +258,7 @@ export async function renderCard(d: CardData): Promise<Uint8Array> {
 	drawBars(cv, d.chart, d.unit, PAD, 380, W - PAD, 516);
 
 	cv.text("body", `How many have you made?  ${d.host}`, PAD, 578, C.muted);
-	return encodePng(cv);
+	return encodePng(cv, theme);
 }
 
 function drawBars(cv: Canvas, c: ChartModel, unit: string, x0: number, top: number, x1: number, bottom: number) {
@@ -270,7 +269,9 @@ function drawBars(cv: Canvas, c: ChartModel, unit: string, x0: number, top: numb
 	const yOf = (v: number) => bottom - Math.round((v / c.yMax) * plotH);
 
 	const g = growthText(c);
-	const capEnd = cv.text("small", `${unit} per week`, x0, top - 16, C.muted);
+	const capEnd = cv.text("small", "Weekly activity", x0, top - 16, C.muted);
+	// y-axis title above the tick labels in the right gutter
+	cv.text("small", unit, x1, top - 16, C.muted, "right");
 	if (g) cv.text("small", `·  ${g}`, capEnd + 10, top - 16, C.accent);
 
 	for (const t of c.ticks) {

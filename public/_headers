@@ -11,6 +11,9 @@
 /app.js
   Cache-Control: public, max-age=3600, s-maxage=86400
 
+/themes.js
+  Cache-Control: public, max-age=3600, s-maxage=86400
+
 /style.css
   Cache-Control: public, max-age=3600, s-maxage=86400
 

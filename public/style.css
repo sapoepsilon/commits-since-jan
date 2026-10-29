@@ -5,11 +5,14 @@
   --text: #e6edf3;
   --muted: #7d8590;
   --accent: #2f81f7;
-  --l0: #161b22;
+  --l0: #1c222b;
   --l1: #0e4429;
   --l2: #006d32;
   --l3: #26a641;
   --l4: #39d353;
+  --btn: #21262d;
+  --btn-hover: #30363d;
+  --grid: #21262d;
   --font: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif;
   color-scheme: dark;
 }
@@ -51,22 +54,20 @@ a:hover { text-decoration: underline; }
 .bars { margin-top: 6px; }
 .bars svg { display: block; width: 100%; height: auto; overflow: visible; }
 .bars .ax { fill: var(--muted); font: 500 12px var(--font); }
-.bars .pk { fill: #39d353; font: 600 13px var(--font); }
+.bars .pk { font: 600 13px var(--font); }
 .link { background: none; border: 0; padding: 0; margin-top: 12px; color: var(--accent); font: inherit; font-size: 13px; cursor: pointer; }
 .link:hover { text-decoration: underline; }
 .heat-wrap { overflow-x: auto; margin-top: 22px; padding-bottom: 4px; }
 .heat { display: grid; grid-auto-flow: column; grid-template-rows: repeat(7, 11px); grid-auto-columns: 11px; gap: 3px; width: max-content; }
 .heat i, .legend i { display: block; width: 11px; height: 11px; border-radius: 2px; outline: 1px solid rgba(27,31,35,.06); outline-offset: -1px; }
-.l0 { background: var(--l0); outline-color: rgba(240,246,252,.05) !important; }
+.l0 { background: var(--l0); }
 .l1 { background: var(--l1); } .l2 { background: var(--l2); } .l3 { background: var(--l3); } .l4 { background: var(--l4); }
-.heat .l0 { background: #1c222b; }
 .legend { display: flex; gap: 3px; align-items: center; justify-content: flex-end; color: var(--muted); font-size: 12px; margin-top: 8px; }
 .legend span { margin: 0 4px; }
-.legend .l0 { background: #1c222b; }
 .note { color: var(--muted); font-size: 13px; margin: 16px 0 0; border-top: 1px solid var(--border); padding-top: 12px; }
 .share { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
-.btn { display: inline-flex; align-items: center; background: #21262d; color: var(--text); border: 1px solid var(--border); padding: 8px 14px; }
-.btn:hover { background: #30363d; text-decoration: none; }
+.btn { display: inline-flex; align-items: center; background: var(--btn); color: var(--text); border: 1px solid var(--border); padding: 8px 14px; }
+.btn:hover { background: var(--btn-hover); text-decoration: none; }
 .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
 .foot { color: var(--muted); font-size: 12px; margin-top: 40px; line-height: 1.5; }
 @media (max-width: 520px) {
@@ -76,3 +77,20 @@ a:hover { text-decoration: underline; }
   .heat i { width: 9px; height: 9px; }
   .btn { flex: 1 1 calc(50% - 8px); justify-content: center; }
 }
+
+.tools { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; margin-top: 16px; color: var(--muted); font-size: 13px; }
+.swatches { display: flex; gap: 8px; }
+.sw { width: 28px; height: 28px; border-radius: 50%; border: 2px solid var(--border); padding: 0; cursor: pointer; background: linear-gradient(135deg, var(--a) 50%, var(--b) 50%); }
+.sw[aria-pressed="true"] { border-color: var(--accent); box-shadow: 0 0 0 2px var(--panel), 0 0 0 4px var(--accent); }
+.seg { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.seg button { font: inherit; font-size: 13px; background: var(--btn); color: var(--text); border: 0; padding: 6px 10px; cursor: pointer; }
+.seg button + button { border-left: 1px solid var(--border); }
+.seg button[aria-pressed="true"] { background: var(--accent); color: #fff; }
+.composer { margin-top: 16px; }
+.composer-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; color: var(--muted); font-size: 13px; margin-bottom: 6px; }
+.composer select { font: inherit; font-size: 13px; color: var(--text); background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 5px 8px; }
+.composer textarea { width: 100%; min-height: 84px; resize: vertical; font: inherit; font-size: 15px; line-height: 1.45; color: var(--text); background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; }
+.composer textarea:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.count { font-variant-numeric: tabular-nums; }
+.count.warn { color: #f85149; font-weight: 600; }
+.hint { color: var(--muted); font-size: 13px; margin: 8px 2px 0; min-height: 1em; }

@@ -23,6 +23,7 @@
 <meta name="twitter:description" content="How many commits have you made on GitHub since January 1? Look up any username.">
 <meta name="twitter:image" content="https://commits-since-jan.pages.dev/og.png">
 <link rel="stylesheet" href="/style.css">
+<script src="/themes.js" defer></script>
 <script src="/app.js" defer></script>
 </head>
 <body>
@@ -64,7 +65,7 @@
     <div class="big"><span id="num">0</span></div>
     <div id="label" class="label"></div>
     <div id="sub" class="sub"></div>
-    <div class="chart-head"><span>contributions per week</span> <span id="growth" class="growth"></span></div>
+    <div class="chart-head"><span>Weekly activity</span> <span id="growth" class="growth"></span></div>
     <div id="bars" class="bars"></div>
     <button id="toggleHeat" class="link" type="button" aria-expanded="false" aria-controls="heatBox">Show daily heatmap</button>
     <div id="heatBox" hidden>
@@ -72,6 +73,35 @@
       <div class="legend"><span>Less</span><i class="l0"></i><i class="l1"></i><i class="l2"></i><i class="l3"></i><i class="l4"></i><span>More</span></div>
     </div>
     <p id="note" class="note"></p>
+  </section>
+
+  <section id="tools" class="tools" hidden>
+    <span>Theme</span>
+    <div id="swatches" class="swatches" role="group" aria-label="Theme"></div>
+    <span>Image</span>
+    <div id="formats" class="seg" role="group" aria-label="Image format">
+      <button type="button" data-format="landscape" aria-pressed="true">Landscape</button>
+      <button type="button" data-format="post">Post 4:5</button>
+      <button type="button" data-format="story">Story 9:16</button>
+    </div>
+  </section>
+
+  <section id="composer" class="composer" hidden>
+    <div class="composer-head">
+      <label for="tpl">Share text</label>
+      <span>
+        <select id="tpl" aria-label="Share text style">
+          <option value="challenge">Challenge</option>
+          <option value="humble">Humble</option>
+          <option value="brag">Brag</option>
+          <option value="numbers">Numbers only</option>
+          <option value="since">Since…</option>
+        </select>
+        <button id="tplNext" class="btn" type="button" title="Next style">Next ↻</button>
+      </span>
+    </div>
+    <textarea id="text" rows="3" aria-describedby="count"></textarea>
+    <div class="composer-head"><span>X counts the link as 23 characters.</span><span id="count" class="count"></span></div>
   </section>
 
   <section id="share" class="share" hidden>
@@ -82,9 +112,11 @@
     <a id="sbs" class="btn" target="_blank" rel="noopener">Bluesky</a>
     <a id="srd" class="btn" target="_blank" rel="noopener">Reddit</a>
     <a id="sfb" class="btn" target="_blank" rel="noopener">Facebook</a>
-    <button id="copy" class="btn" type="button">Copy link</button>
+    <button id="copy" class="btn" type="button">Copy text + link</button>
+    <button id="ig" class="btn" type="button">Instagram</button>
     <button id="dl" class="btn" type="button">Download PNG</button>
   </section>
+  <p id="hint" class="hint" role="status" aria-live="polite"></p>
 
   <footer class="foot">Counts come from GitHub's public contribution data. Private work only shows up as a count, and only if the user made private contributions visible on their profile. Weekly bars count all contribution types. Results are cached for about 6 hours.</footer>
 </main>

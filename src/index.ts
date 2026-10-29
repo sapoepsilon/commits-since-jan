@@ -6,6 +6,7 @@
 
 import { buildChart, type ChartModel } from "./chart";
 import { renderCard } from "./png";
+import { parseTheme, THEMES, type ThemeId } from "./themes";
 import { parseRange, type Range } from "./range";
 
 const LOGIN_RE = /^[a-z\d](?:[a-z\d]|-(?=[a-z\d])){0,38}$/i;
@@ -303,7 +304,7 @@ function describe(d: UserResult) {
 	};
 }
 
-async function userPage(url: URL, login: string, r: Range, env: Env, ctx: ExecutionContext): Promise<Response> {
+async function userPage(url: URL, login: string, r: Range, theme: ThemeId, env: Env, ctx: ExecutionContext): Promise<Response> {
 	const { body, status, cache } = await getResult(login, r, env, ctx, url.origin);
 
 	let title = `@${login} · Commits since Jan 1`;
@@ -316,9 +317,11 @@ async function userPage(url: URL, login: string, r: Range, env: Env, ctx: Execut
 	}
 
 	const shell = await env.ASSETS.fetch(new Request(`${url.origin}/index.html`));
-	const pageUrl = `${url.origin}/u/${encodeURIComponent(canonLogin)}${r.query}`;
-	const image =
-		status === 200 ? `${url.origin}/og/${encodeURIComponent(canonLogin)}.png${r.query}` : `${url.origin}/og.png`;
+	const q = withTheme(r.query, theme);
+	const pageUrl = `${url.origin}/u/${encodeURIComponent(canonLogin)}${q}`;
+	const image = status === 200 ? `${url.origin}/og/${encodeURIComponent(canonLogin)}.png${q}` : `${url.origin}/og.png`;
+	const t = THEMES[theme];
+	const vars = themeCss(theme);
 	// Embed the result so a deep-linked visit costs one Worker request, not two.
 	const boot = `<script id="boot" type="application/json">${body.replace(/</g, "\\u003c")}</script>`;
 
@@ -343,9 +346,12 @@ async function userPage(url: URL, login: string, r: Range, env: Env, ctx: Execut
 		.on('meta[name="twitter:description"]', attr("content", desc))
 		.on('meta[name="twitter:image"]', attr("content", image))
 		.on('link[rel="canonical"]', attr("href", pageUrl))
+		.on("html", attr("data-theme", theme))
+		.on('meta[name="theme-color"]', attr("content", t.bg))
 		.on("head", {
 			element(el) {
 				el.append(boot, { html: true });
+				if (vars) el.append(vars, { html: true });
 			},
 		})
 		.transform(shell);
@@ -358,8 +364,8 @@ async function userPage(url: URL, login: string, r: Range, env: Env, ctx: Execut
 	return new Response(rewritten.body, { status, headers });
 }
 
-async function ogImage(url: URL, login: string, r: Range, env: Env, ctx: ExecutionContext): Promise<Response> {
-	const key = cacheUrl(url.origin, "og", login, r);
+async function ogImage(url: URL, login: string, r: Range, theme: ThemeId, env: Env, ctx: ExecutionContext): Promise<Response> {
+	const key = cacheUrl(url.origin, `og/${theme}`, login, r);
 	const cache = caches.default;
 	const hit = await cache.match(key);
 	if (hit) {
@@ -379,7 +385,8 @@ async function ogImage(url: URL, login: string, r: Range, env: Env, ctx: Executi
 
 	const d = JSON.parse(body) as UserResult;
 	const h = headline(d);
-	const png = await renderCard({
+	const png = await renderCard(
+		{
 		login: d.login,
 		name: d.name,
 		num: h.num,
@@ -390,7 +397,9 @@ async function ogImage(url: URL, login: string, r: Range, env: Env, ctx: Executi
 		unit: "contributions",
 		chart: d.chart,
 		host: url.host,
-	});
+		},
+		THEMES[theme],
+	);
 	const headers = {
 		"content-type": "image/png",
 		"cache-control": `public, max-age=${RESULT_TTL}`,
@@ -398,6 +407,23 @@ async function ogImage(url: URL, login: string, r: Range, env: Env, ctx: Executi
 	};
 	ctx.waitUntil(cache.put(key, new Response(png, { headers })));
 	return new Response(png, { headers: { ...headers, "x-cache": "MISS" } });
+}
+
+function withTheme(query: string, theme: ThemeId) {
+	if (theme === "dark") return query;
+	return `${query}${query ? "&" : "?"}theme=${theme}`;
+}
+
+// Inline CSS variables so a themed deep link paints in its theme immediately.
+function themeCss(theme: ThemeId) {
+	if (theme === "dark") return "";
+	const t = THEMES[theme];
+	const v = [
+		`--bg:${t.bg}`, `--panel:${t.panel}`, `--border:${t.border}`, `--text:${t.text}`, `--muted:${t.muted}`,
+		`--accent:${t.accent}`, `--btn:${t.button}`, `--btn-hover:${t.buttonHover}`, `--grid:${t.grid}`,
+		...t.heat.map((c, i) => `--l${i}:${c}`), `color-scheme:${t.scheme}`,
+	];
+	return `<style id="theme-vars">:root{${v.join(";")}}</style>`;
 }
 
 function cleanLogin(raw: string) {
@@ -431,8 +457,9 @@ export default {
 				headers: { ...JSON_HEADERS, "cache-control": "public, max-age=3600" },
 			});
 		}
-		if (page) return userPage(url, login, r, env, ctx);
-		if (og) return ogImage(url, login, r, env, ctx);
+		const theme = parseTheme(url.searchParams);
+		if (page) return userPage(url, login, r, theme, env, ctx);
+		if (og) return ogImage(url, login, r, theme, env, ctx);
 
 		const { body, status, cache } = await getResult(login, r, env, ctx, url.origin);
 		return new Response(body, {
