@@ -1,9 +1,14 @@
 // Measures CPU time of the Worker's PNG share-image renderer in Node.
 // npx esbuild scripts/bench-og.ts --bundle --platform=node --format=esm --outfile=/tmp/bench-og.mjs && node /tmp/bench-og.mjs [out.png]
 import { writeFileSync } from "node:fs";
+import { buildChart } from "../src/chart";
 import { renderCard } from "../src/png";
 
-const days: [number, number][] = Array.from({ length: 365 }, (_, i) => [i % 7, (i * 7919) % 5]);
+// Synthetic year that climbs from ~25/day to ~700/day, with noise.
+const days: [number, number][] = Array.from({ length: 365 }, (_, i) => {
+	const base = 25 * Math.pow(28, i / 364);
+	return [Math.round(base * (0.6 + ((i * 7919) % 10) / 12)), (i * 7919) % 5];
+});
 const data = {
 	login: "octocat",
 	name: "The Octocat",
@@ -12,8 +17,8 @@ const data = {
 	rangeLabel: "in the last 12 months",
 	short: "Oct 30, 2025 – Oct 29, 2026",
 	sub: "+ 567 private contributions · 2,345 total contributions",
-	from: "2025-10-30",
-	days,
+	unit: "contributions",
+	chart: buildChart("2025-10-30", days),
 	host: "example.pages.dev",
 };
 let png = await renderCard(data); // warm-up (JIT + glyph decode)

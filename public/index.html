@@ -32,7 +32,7 @@
   </header>
 
   <section class="hero">
-    <h1>How many commits have you made since <span class="accent">January&nbsp;1<span id="yr"></span></span>?</h1>
+    <h1>How many commits have you made <span class="accent" id="headRange">since January&nbsp;1</span>?</h1>
     <form id="f" class="search" autocomplete="off">
       <label for="q" class="sr">GitHub username</label>
       <span class="at">@</span>
@@ -64,8 +64,13 @@
     <div class="big"><span id="num">0</span></div>
     <div id="label" class="label"></div>
     <div id="sub" class="sub"></div>
-    <div class="heat-wrap"><div id="heat" class="heat" role="img"></div></div>
-    <div class="legend"><span>Less</span><i class="l0"></i><i class="l1"></i><i class="l2"></i><i class="l3"></i><i class="l4"></i><span>More</span></div>
+    <div class="chart-head"><span>contributions per week</span> <span id="growth" class="growth"></span></div>
+    <div id="bars" class="bars"></div>
+    <button id="toggleHeat" class="link" type="button" aria-expanded="false" aria-controls="heatBox">Show daily heatmap</button>
+    <div id="heatBox" hidden>
+      <div class="heat-wrap"><div id="heat" class="heat" role="img"></div></div>
+      <div class="legend"><span>Less</span><i class="l0"></i><i class="l1"></i><i class="l2"></i><i class="l3"></i><i class="l4"></i><span>More</span></div>
+    </div>
     <p id="note" class="note"></p>
   </section>
 
@@ -81,7 +86,7 @@
     <button id="dl" class="btn" type="button">Download PNG</button>
   </section>
 
-  <footer class="foot">Counts come from GitHub's public contribution data. Private work only shows up as a count, and only if the user made private contributions visible on their profile. Results are cached for about 6 hours. Not affiliated with GitHub.</footer>
+  <footer class="foot">Counts come from GitHub's public contribution data. Private work only shows up as a count, and only if the user made private contributions visible on their profile. Weekly bars count all contribution types. Results are cached for about 6 hours.</footer>
 </main>
 </body>
 </html>

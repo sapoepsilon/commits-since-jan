@@ -18,6 +18,7 @@
   }
 
   function syncRangeControls(id, from) {
+    setHeadline(id || "ytd", from);
     $("range").value = id || "ytd";
     $("from").hidden = id !== "custom";
     if (id === "custom" && from) $("from").value = from;
@@ -32,7 +33,15 @@
   }
   let current = null;
 
-  $("yr").textContent = ", " + new Date().getUTCFullYear();
+  const RANGE_HEAD = { "30d": "in the last 30 days", "90d": "in the last 90 days", "12m": "in the last 12 months" };
+  function setHeadline(id, from) {
+    let t;
+    if (RANGE_HEAD[id]) t = RANGE_HEAD[id];
+    else if (id === "custom" && from) t = "since " + new Date(from + "T00:00:00Z").toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric", timeZone: "UTC" });
+    else t = `since January 1, ${new Date().getUTCFullYear()}`;
+    $("headRange").textContent = t;
+  }
+  setHeadline("ytd");
 
   function setMsg(text, err) {
     $("msg").textContent = text || "";
@@ -113,6 +122,7 @@
     $("native").hidden = !navigator.share;
 
     $("result").hidden = false;
+    renderBarsSvg($("bars"), d.chart);
     $("share").hidden = false;
     document.title = `@${d.login}: ${fmt(h.num)} ${h.word} ${d.rangeLabel}`;
     syncRangeControls(d.range, d.from);
@@ -156,6 +166,164 @@
     } finally {
       $("f").querySelector("button").disabled = false;
     }
+  }
+
+
+  // ---------- weekly bar chart (same geometry for canvas and SVG) ----------
+  const BAR = { bar: "#26a641", barTop: "#2ea043", barLow: "#1a7f37", peak: "#39d353", dim: "#006d32", grid: "#21262d" };
+
+  function compact(n) {
+    if (n >= 1e6) return `${+(n / 1e6).toFixed(1)}M`;
+    if (n >= 1e4) return `${Math.round(n / 1000)}k`;
+    if (n >= 1e3) return `${+(n / 1000).toFixed(1)}k`;
+    return String(n);
+  }
+
+  function growthText(c) {
+    if (c.growth == null || c.growth < 1.5) return null;
+    return `${c.growth >= 10 ? Math.round(c.growth) : c.growth}× vs first month`;
+  }
+
+  function barsLayout(c, x0, top, x1, bottom, gutter, minLabelGap) {
+    const n = c.weeks.length;
+    const plotR = x1 - gutter;
+    const plotH = bottom - top;
+    const yOf = (v) => bottom - Math.round((v / c.yMax) * plotH);
+    const slot = (plotR - x0) / Math.max(1, n);
+    const bw = Math.max(2, Math.min(64, Math.round(slot * 0.72)));
+    const bars = c.weeks.map(([start, v, len], i) => {
+      const h = v > 0 ? Math.max(2, bottom - yOf(v)) : 0;
+      const x = Math.round(x0 + i * slot + (slot - bw) / 2);
+      const kind = i === c.peak && v > 0 ? "peak" : len < 7 && i === n - 1 ? "dim" : "bar";
+      return { x, y: bottom - h, w: bw, h, v, start, len, kind };
+    });
+    const labels = [];
+    let lastX = -1e9;
+    for (const [w, m] of c.months) {
+      const mx = Math.round(x0 + w * slot + (slot - bw) / 2);
+      if (mx > plotR - 20) continue;
+      if (mx - lastX < minLabelGap) {
+        if (labels.length === 1 && labels[0].w === 0) labels.pop();
+        else continue;
+      }
+      labels.push({ x: mx, m, w });
+      lastX = mx;
+    }
+    return { bars, labels, ticks: c.ticks.map((t) => ({ y: yOf(t), t })), plotR, slot, bw, peak: bars[c.peak] };
+  }
+
+  function roundTop(ctx, x, y, w, h, r) {
+    r = Math.min(r, w / 2, h);
+    ctx.beginPath();
+    ctx.moveTo(x, y + h);
+    ctx.lineTo(x, y + r);
+    ctx.arcTo(x, y, x + r, y, r);
+    ctx.arcTo(x + w, y, x + w, y + r, r);
+    ctx.lineTo(x + w, y + h);
+    ctx.closePath();
+  }
+
+  function drawBarsCanvas(ctx, c, x0, top, x1, bottom) {
+    if (!c || !c.weeks.length) return;
+    const L = barsLayout(c, x0, top, x1, bottom, 56, 40);
+    ctx.font = `500 18px ${FONT}`;
+    ctx.fillStyle = COLORS.muted;
+    ctx.fillText(`contributions per week`, x0, top - 16);
+    const g = growthText(c);
+    if (g) {
+      const w = ctx.measureText("contributions per week").width;
+      ctx.fillStyle = COLORS.accent;
+      ctx.fillText(`·  ${g}`, x0 + w + 10, top - 16);
+    }
+    for (const t of L.ticks) {
+      ctx.fillStyle = BAR.grid;
+      ctx.fillRect(x0, t.y, L.plotR - x0, 1);
+      ctx.fillStyle = COLORS.muted;
+      ctx.textAlign = "right";
+      ctx.fillText(compact(t.t), x1, t.y + 6);
+      ctx.textAlign = "left";
+    }
+    ctx.fillStyle = COLORS.border;
+    ctx.fillRect(x0, bottom, L.plotR - x0, 1);
+    for (const b of L.bars) {
+      if (!b.h) continue;
+      const grad = ctx.createLinearGradient(0, b.y, 0, b.y + b.h);
+      const top = b.kind === "peak" ? BAR.peak : b.kind === "dim" ? BAR.dim : BAR.barTop;
+      grad.addColorStop(0, top);
+      grad.addColorStop(1, b.kind === "dim" ? BAR.dim : BAR.barLow);
+      ctx.fillStyle = grad;
+      roundTop(ctx, b.x, b.y, b.w, b.h, 4);
+      ctx.fill();
+    }
+    if (L.peak && L.peak.v > 0) {
+      const text = `peak: ${fmt(L.peak.v)} / week`;
+      const pw = ctx.measureText(text).width;
+      const px = Math.min(L.plotR - pw, Math.max(x0, L.peak.x + L.peak.w / 2 - pw / 2));
+      ctx.fillStyle = BAR.peak;
+      ctx.fillText(text, px, L.peak.y - 8);
+    }
+    ctx.fillStyle = COLORS.muted;
+    for (const l of L.labels) ctx.fillText(l.m, l.x, bottom + 24);
+  }
+
+  function renderBarsSvg(el, c) {
+    el.textContent = "";
+    if (!c || !c.weeks.length) return;
+    // draw at the element's real pixel width so axis text stays readable on phones
+    const W = Math.max(280, Math.round(el.clientWidth || 800));
+    const H = W < 500 ? 200 : 250, x0 = 0, top = 30, x1 = W, bottom = H - 28;
+    const L = barsLayout(c, x0, top, x1, bottom, 44, 34);
+    const NS = "http://www.w3.org/2000/svg";
+    const svg = document.createElementNS(NS, "svg");
+    svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+    svg.setAttribute("role", "img");
+    svg.setAttribute("aria-label", `Weekly contributions, ${c.weeks.length} weeks, peak ${L.peak ? L.peak.v : 0} per week`);
+    const add = (tag, attrs, text) => {
+      const n = document.createElementNS(NS, tag);
+      for (const k in attrs) n.setAttribute(k, attrs[k]);
+      if (text != null) n.textContent = text;
+      svg.appendChild(n);
+      return n;
+    };
+    const defs = add("defs", {});
+    const mk = (id, a, b) => {
+      const lg = document.createElementNS(NS, "linearGradient");
+      lg.setAttribute("id", id);
+      lg.setAttribute("x1", "0"); lg.setAttribute("y1", "0"); lg.setAttribute("x2", "0"); lg.setAttribute("y2", "1");
+      for (const [off, col] of [["0", a], ["1", b]]) {
+        const st = document.createElementNS(NS, "stop");
+        st.setAttribute("offset", off);
+        st.setAttribute("stop-color", col);
+        lg.appendChild(st);
+      }
+      defs.appendChild(lg);
+    };
+    mk("gBar", BAR.barTop, BAR.barLow);
+    mk("gPeak", BAR.peak, BAR.barLow);
+    for (const t of L.ticks) {
+      add("rect", { x: x0, y: t.y, width: L.plotR - x0, height: 1, fill: BAR.grid });
+      add("text", { x: x1, y: t.y + 5, "text-anchor": "end", class: "ax" }, compact(t.t));
+    }
+    add("rect", { x: x0, y: bottom, width: L.plotR - x0, height: 1, fill: COLORS.border });
+    for (const b of L.bars) {
+      if (!b.h) continue;
+      const r = Math.min(3, b.w / 2, b.h);
+      const d = `M${b.x},${b.y + b.h}V${b.y + r}Q${b.x},${b.y} ${b.x + r},${b.y}H${b.x + b.w - r}Q${b.x + b.w},${b.y} ${b.x + b.w},${b.y + r}V${b.y + b.h}Z`;
+      const p = add("path", { d, fill: b.kind === "peak" ? "url(#gPeak)" : b.kind === "dim" ? BAR.dim : "url(#gBar)" });
+      const t = document.createElementNS(NS, "title");
+      t.textContent = `Week of ${b.start}: ${fmt(b.v)} contributions${b.len < 7 ? ` (${b.len} days)` : ""}`;
+      p.appendChild(t);
+    }
+    if (L.peak && L.peak.v > 0) {
+      const text = `peak: ${fmt(L.peak.v)} / week`;
+      const cx = L.peak.x + L.peak.w / 2;
+      const anchor = cx > L.plotR - 70 ? "end" : cx < 70 ? "start" : "middle";
+      add("text", { x: anchor === "end" ? L.plotR : anchor === "start" ? x0 : cx, y: L.peak.y - 7, "text-anchor": anchor, class: "pk" }, text);
+    }
+    for (const l of L.labels) add("text", { x: l.x, y: bottom + 20, class: "ax" }, l.m);
+    el.appendChild(svg);
+    const g = growthText(c);
+    $("growth").textContent = g ? `· ${g}` : "";
   }
 
   // ---------- PNG card (client-side canvas, 1200x630) ----------
@@ -232,48 +400,24 @@
     ctx.textAlign = "left";
 
     ctx.fillStyle = COLORS.text;
-    ctx.font = `700 150px ${FONT}`;
+    ctx.font = `700 124px ${FONT}`;
     const numText = fmt(h.num);
-    ctx.fillText(numText, PAD - 6, 330);
+    ctx.fillText(numText, PAD - 4, 272);
     const numW = ctx.measureText(numText).width;
     ctx.fillStyle = COLORS.accent;
     ctx.font = `600 30px ${FONT}`;
-    ctx.fillText(h.word, PAD + numW + 20, 286, W - PAD * 2 - numW - 20);
-    ctx.fillText(d.rangeLabel, PAD + numW + 20, 328, W - PAD * 2 - numW - 20);
-    if (d.source === "graphql" && d.restricted) {
-      ctx.fillStyle = COLORS.muted;
-      ctx.font = `400 24px ${FONT}`;
-      ctx.fillText(`+ ${fmt(d.restricted)} private contributions · ${fmt(d.total)} total contributions`, PAD, 374);
-    } else if (d.source !== "graphql") {
-      ctx.fillStyle = COLORS.muted;
-      ctx.font = `400 24px ${FONT}`;
-      ctx.fillText("commits, PRs, issues and reviews combined", PAD, 374);
-    }
+    ctx.fillText(h.word, PAD + numW + 20, 230, W - PAD * 2 - numW - 20);
+    ctx.fillText(d.rangeLabel, PAD + numW + 20, 270, W - PAD * 2 - numW - 20);
+    ctx.fillStyle = COLORS.muted;
+    ctx.font = `400 23px ${FONT}`;
+    ctx.fillText(h.sub, PAD, 314, W - PAD * 2);
 
-    // heatmap
-    const start = new Date(d.from + "T00:00:00Z");
-    const lead = start.getUTCDay();
-    const cols = Math.ceil((lead + d.days.length) / 7);
-    const gridW = W - PAD * 2;
-    const gap = 4;
-    const cell = Math.max(4, Math.min(16, Math.floor((gridW + gap) / cols) - gap));
-    const top = 400;
-    d.days.forEach(([, level], i) => {
-      const k = i + lead;
-      const x = PAD + Math.floor(k / 7) * (cell + gap);
-      const y = top + (k % 7) * (cell + gap);
-      roundRect(ctx, x, y, cell, cell, 3);
-      ctx.fillStyle = COLORS.levels[level] || COLORS.levels[0];
-      ctx.fill();
-    });
+    drawBarsCanvas(ctx, d.chart, PAD, 380, W - PAD, 516);
 
     ctx.fillStyle = COLORS.muted;
-    ctx.font = `400 20px ${FONT}`;
+    ctx.font = `400 23px ${FONT}`;
     const host = /^(localhost|127\.)/.test(location.hostname) ? "commits-since-jan.pages.dev" : location.host;
-    ctx.fillText(`How many have you made?  ${host}`, PAD, H - 56);
-    ctx.textAlign = "right";
-    ctx.fillText("Not affiliated with GitHub", W - PAD, H - 56);
-    ctx.textAlign = "left";
+    ctx.fillText(`How many have you made?  ${host}`, PAD, 578);
 
     // downscale to exactly 1200x630 for sharing
     const out = document.createElement("canvas");
@@ -309,6 +453,11 @@
     lookup($("q").value, true);
   });
   $("dl").addEventListener("click", downloadPng);
+  let resizeT;
+  window.addEventListener("resize", () => {
+    clearTimeout(resizeT);
+    resizeT = setTimeout(() => current && renderBarsSvg($("bars"), current.chart), 150);
+  });
   $("shot").addEventListener("click", async () => {
     if (!current) return;
     const canvas = await drawCard(current);
@@ -341,6 +490,14 @@
     relookup();
   });
   $("from").addEventListener("change", relookup);
+  $("range").addEventListener("change", () => setHeadline($("range").value, $("from").value));
+  $("from").addEventListener("change", () => setHeadline("custom", $("from").value));
+  $("toggleHeat").addEventListener("click", () => {
+    const show = $("heatBox").hidden;
+    $("heatBox").hidden = !show;
+    $("toggleHeat").setAttribute("aria-expanded", String(show));
+    $("toggleHeat").textContent = show ? "Hide daily heatmap" : "Show daily heatmap";
+  });
 
   function relookup() {
     if (current) lookup(current.login, true);

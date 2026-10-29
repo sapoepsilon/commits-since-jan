@@ -4,13 +4,14 @@
 // edge with the Cache API, and share images are drawn with a small indexed PNG
 // encoder instead of satori/resvg/wasm.
 
+import { buildChart, type ChartModel } from "./chart";
 import { renderCard } from "./png";
 import { parseRange, type Range } from "./range";
 
 const LOGIN_RE = /^[a-z\d](?:[a-z\d]|-(?=[a-z\d])){0,38}$/i;
 const RESULT_TTL = 6 * 60 * 60; // seconds
 const NOT_FOUND_TTL = 60 * 60;
-const CACHE_VERSION = "v3";
+const CACHE_VERSION = "v4";
 const UA = "commits-since-jan";
 
 type Source = "graphql" | "html";
@@ -30,8 +31,11 @@ interface UserResult {
 	restricted: number | null; // graphql: private contributions GitHub reports only as a count
 	total: number; // all contribution types in the range
 	days: [number, number][]; // one per day from `from` to `to`: [count, level 0-4]
+	chart: ChartModel; // weekly bars built from `days` (all contribution types)
 	fetchedAt: string;
 }
+
+const EMPTY_CHART: ChartModel = { weeks: [], peak: 0, yMax: 4, ticks: [], months: [], growth: null };
 
 class NotFoundError extends Error {}
 class UpstreamError extends Error {}
@@ -134,6 +138,7 @@ async function viaGraphQL(login: string, r: Range, token: string): Promise<UserR
 		restricted: cc.restrictedContributionsCount,
 		total: cc.contributionCalendar.totalContributions,
 		days: daysBetween(r, byDate).days,
+		chart: EMPTY_CHART,
 		fetchedAt: new Date().toISOString(),
 	};
 }
@@ -202,6 +207,7 @@ async function viaPublicHtml(login: string, r: Range): Promise<UserResult> {
 		restricted: null,
 		total,
 		days,
+		chart: EMPTY_CHART,
 		fetchedAt: new Date().toISOString(),
 	};
 }
@@ -248,7 +254,9 @@ async function getResult(
 	let status: number;
 	let ttl: number;
 	try {
-		body = JSON.stringify(await lookup(login, r, env));
+		const result = await lookup(login, r, env);
+		result.chart = buildChart(result.from, result.days);
+		body = JSON.stringify(result);
 		status = 200;
 		ttl = RESULT_TTL;
 	} catch (e) {
@@ -379,8 +387,8 @@ async function ogImage(url: URL, login: string, r: Range, env: Env, ctx: Executi
 		rangeLabel: d.rangeLabel,
 		short: d.short,
 		sub: h.sub,
-		from: d.from,
-		days: d.days,
+		unit: "contributions",
+		chart: d.chart,
 		host: url.host,
 	});
 	const headers = {

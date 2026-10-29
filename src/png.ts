@@ -2,6 +2,7 @@
 // No wasm, no satori: rectangles + pre-rasterised 2-bit glyphs, compressed with
 // the runtime's native CompressionStream("deflate") (zlib, which PNG expects).
 
+import { compact, growthText, type ChartModel } from "./chart";
 import { FONTS } from "./font";
 
 export const W = 1200;
@@ -24,11 +25,17 @@ const BORDER = "#30363d";
 const TEXT = "#e6edf3";
 const MUTED = "#7d8590";
 const ACCENT = "#2f81f7";
-const HEAT = ["#1c222b", "#0e4429", "#006d32", "#26a641", "#39d353"];
+const GRID = "#21262d";
+const BAR = "#26a641";
+const PEAK = "#39d353";
+const BAR_DIM = "#006d32";
 
-export const C = { bg: 0, panel: 1, border: 2, text: 3, muted: 4, accent: 5, heat0: 6 } as const;
+export const C = {
+	bg: 0, panel: 1, border: 2, text: 3, muted: 4, accent: 5,
+	grid: 6, bar: 7, peak: 8, barDim: 9,
+} as const;
 
-// 16-entry palette; 11-15 are anti-aliasing blends of the text colours on PANEL.
+// 16-entry palette; 10-15 are anti-aliasing blends of the text colours on PANEL.
 const PALETTE: [number, number, number][] = [
 	hex(BG),
 	hex(PANEL),
@@ -36,18 +43,23 @@ const PALETTE: [number, number, number][] = [
 	hex(TEXT),
 	hex(MUTED),
 	hex(ACCENT),
-	...HEAT.map(hex),
+	hex(GRID),
+	hex(BAR),
+	hex(PEAK),
+	hex(BAR_DIM),
 	mix(TEXT, PANEL, 0.33),
 	mix(TEXT, PANEL, 0.66),
 	mix(MUTED, PANEL, 0.4),
 	mix(MUTED, PANEL, 0.75),
 	mix(ACCENT, PANEL, 0.5),
+	mix(PEAK, PANEL, 0.5),
 ];
 // colour index -> palette index for alpha levels [0..3]
 const AA: Record<number, [number, number, number, number]> = {
-	[C.text]: [C.panel, 11, 12, C.text],
-	[C.muted]: [C.panel, 13, 14, C.muted],
-	[C.accent]: [C.panel, 15, 15, C.accent],
+	[C.text]: [C.panel, 10, 11, C.text],
+	[C.muted]: [C.panel, 12, 13, C.muted],
+	[C.accent]: [C.panel, 14, 14, C.accent],
+	[C.peak]: [C.panel, 15, 15, C.peak],
 };
 
 // Glyph spans are pre-computed at build time; each glyph is base64-decoded on
@@ -221,8 +233,8 @@ export interface CardData {
 	rangeLabel: string; // "since Jan 1, 2026"
 	short: string; // "Jan 1 – Oct 29, 2026"
 	sub: string;
-	from: string;
-	days: [number, number][];
+	unit: string; // what the weekly bars count, e.g. "contributions"
+	chart: ChartModel;
 	host: string;
 }
 
@@ -238,24 +250,78 @@ export async function renderCard(d: CardData): Promise<Uint8Array> {
 	cv.text("body", d.short, W - PAD, 112, C.muted, "right");
 
 	const num = d.num.toLocaleString("en-US");
-	const end = cv.text("big", num, PAD - 4, 318, C.text);
+	const end = cv.text("big", num, PAD - 4, 272, C.text);
 	const rest = W - PAD - (end + 20);
-	const l1 = cv.fit("h2", d.label, rest);
-	cv.text("h2", l1, end + 20, 274, C.accent);
-	cv.text("h2", cv.fit("h2", d.rangeLabel, rest), end + 20, 316, C.accent);
-	cv.text("body", cv.fit("body", d.sub, W - PAD * 2), PAD, 366, C.muted);
+	cv.text("h2", cv.fit("h2", d.label, rest), end + 20, 230, C.accent);
+	cv.text("h2", cv.fit("h2", d.rangeLabel, rest), end + 20, 270, C.accent);
+	cv.text("body", cv.fit("body", d.sub, W - PAD * 2), PAD, 314, C.muted);
 
-	const lead = new Date(`${d.from}T00:00:00Z`).getUTCDay();
-	const cols = Math.ceil((lead + d.days.length) / 7);
-	const gap = 4;
-	const size = Math.max(4, Math.min(16, Math.floor((W - PAD * 2 + gap) / cols) - gap));
-	const top = 400;
-	for (let i = 0; i < d.days.length; i++) {
-		const k = i + lead;
-		cv.cell(PAD + Math.floor(k / 7) * (size + gap), top + (k % 7) * (size + gap), size, C.heat0 + (d.days[i][1] | 0), C.panel);
+	drawBars(cv, d.chart, d.unit, PAD, 380, W - PAD, 516);
+
+	cv.text("body", `How many have you made?  ${d.host}`, PAD, 578, C.muted);
+	return encodePng(cv);
+}
+
+function drawBars(cv: Canvas, c: ChartModel, unit: string, x0: number, top: number, x1: number, bottom: number) {
+	const n = c.weeks.length;
+	if (!n) return;
+	const plotR = x1 - 56; // right gutter for tick labels
+	const plotH = bottom - top;
+	const yOf = (v: number) => bottom - Math.round((v / c.yMax) * plotH);
+
+	const g = growthText(c);
+	const capEnd = cv.text("small", `${unit} per week`, x0, top - 16, C.muted);
+	if (g) cv.text("small", `·  ${g}`, capEnd + 10, top - 16, C.accent);
+
+	for (const t of c.ticks) {
+		const y = yOf(t);
+		cv.rect(x0, y, plotR - x0, 1, C.grid);
+		cv.text("small", compact(t), x1, y + 6, C.muted, "right");
+	}
+	cv.rect(x0, bottom, plotR - x0, 1, C.border);
+
+	const slot = (plotR - x0) / n;
+	const bw = Math.max(2, Math.min(64, Math.round(slot * 0.72)));
+	const r = Math.min(4, bw >> 1);
+	let peakX = 0;
+	let peakTop = bottom;
+	for (let i = 0; i < n; i++) {
+		const v = c.weeks[i][1];
+		if (v <= 0) continue;
+		const bh = Math.max(2, bottom - yOf(v));
+		const bx = Math.round(x0 + i * slot + (slot - bw) / 2);
+		const by = bottom - bh;
+		const col = i === c.peak ? C.peak : c.weeks[i][2] < 7 && i === n - 1 ? C.barDim : C.bar;
+		for (let yy = 0; yy < bh; yy++) {
+			const dy = yy < r ? r - yy - 0.5 : 0;
+			const inset = dy > 0 ? Math.round(r - Math.sqrt(Math.max(0, r * r - dy * dy))) : 0;
+			cv.span(bx + inset, bx + bw - inset, by + yy, col);
+		}
+		if (i === c.peak) {
+			peakX = bx + bw / 2;
+			peakTop = by;
+		}
 	}
 
-	cv.text("body", `How many have you made?  ${d.host}`, PAD, H - 62, C.muted);
-	cv.text("body", "Not affiliated with GitHub", W - PAD, H - 62, C.muted, "right");
-	return encodePng(cv);
+	if (c.weeks[c.peak][1] > 0) {
+	const peakText = `peak: ${c.weeks[c.peak][1].toLocaleString("en-US")} / week`;
+	const pw = cv.measure("small", peakText);
+	const px = Math.min(plotR - pw, Math.max(x0, peakX - pw / 2));
+	cv.text("small", peakText, Math.round(px), peakTop - 8, C.peak);
+	}
+
+	let lastX = -1e9;
+	const labels: [number, string, number][] = [];
+	for (const [w, m] of c.months) {
+		const mx = Math.round(x0 + w * slot + (slot - bw) / 2);
+		if (mx > plotR - 20) continue;
+		if (mx - lastX < 40) {
+			// a partial first month gives way to the next full one
+			if (labels.length === 1 && labels[0][2] === 0) labels.pop();
+			else continue;
+		}
+		labels.push([mx, m, w]);
+		lastX = mx;
+	}
+	for (const [mx, m] of labels) cv.text("small", m, mx, bottom + 24, C.muted);
 }
