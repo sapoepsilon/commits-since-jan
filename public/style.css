@@ -94,3 +94,6 @@ a:hover { text-decoration: underline; }
 .count { font-variant-numeric: tabular-nums; }
 .count.warn { color: #f85149; font-weight: 600; }
 .hint { color: var(--muted); font-size: 13px; margin: 8px 2px 0; min-height: 1em; }
+.credits { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin-top: 14px; font-size: 13px; }
+.credits .btn.small { padding: 4px 10px; font-size: 12px; flex: 0 0 auto; }
+.credits .src { display: inline-flex; align-items: center; gap: 5px; }

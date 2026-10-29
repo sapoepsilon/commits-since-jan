@@ -166,7 +166,7 @@
     const c = d.chart;
     const peak = c && c.weeks.length ? c.weeks[c.peak][1] : 0;
     const v = { num: fmt(h.num), word: h.word, range: d.rangeLabel, peak: fmt(peak), g: growthNum(c) };
-    return (TEMPLATES[id] || TEMPLATES.challenge)(v);
+    return `${(TEMPLATES[id] || TEMPLATES.challenge)(v)} via @killerisya`;
   }
 
   const shareTextNow = () => $("text").value.trim();
