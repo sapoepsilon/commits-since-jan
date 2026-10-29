@@ -1,0 +1,17 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><style>
+html,body{margin:0;width:1200px;height:630px;background:#0d1117;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans",Helvetica,Arial,sans-serif;color:#e6edf3}
+.c{position:absolute;inset:32px;background:#161b22;border:2px solid #30363d;border-radius:20px;padding:56px 64px;box-sizing:border-box}
+h1{font-size:68px;line-height:1.08;margin:0 0 18px;letter-spacing:-.02em;max-width:900px}
+h1 span{color:#2f81f7}
+p{color:#7d8590;font-size:28px;margin:0}
+.g{position:absolute;left:64px;right:64px;bottom:56px;display:grid;grid-auto-flow:column;grid-template-rows:repeat(7,16px);grid-auto-columns:16px;gap:4px}
+.g i{border-radius:3px}
+</style></head><body><div class="c">
+<h1>How many commits have you made since <span>January 1</span>?</h1>
+<p>Type any GitHub username and get a shareable card.</p>
+<div class="g" id="g"></div></div>
+<script>
+const L=["#1c222b","#0e4429","#006d32","#26a641","#39d353"];let s=7;const r=()=>(s=(s*16807)%2147483647)/2147483647;
+const g=document.getElementById('g');for(let i=0;i<7*52;i++){const x=r();const e=document.createElement('i');e.style.background=L[x<.3?0:x<.55?1:x<.75?2:x<.9?3:4];g.appendChild(e);}
+</script></body></html>

@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Commits since Jan 1</title>
+<meta name="description" content="How many commits have you made on GitHub since January 1? Look up any username.">
+<meta name="theme-color" content="#0d1117">
+<link rel="canonical" href="https://commits-since-jan.pages.dev/">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Commits since Jan 1">
+<meta property="og:title" content="Commits since Jan 1">
+<meta property="og:description" content="How many commits have you made on GitHub since January 1? Look up any username.">
+<meta property="og:url" content="https://commits-since-jan.pages.dev/">
+<meta property="og:image" content="https://commits-since-jan.pages.dev/og.png">
+<meta property="og:image:type" content="image/png">
+<meta property="og:image:alt" content="How many commits have you made since January 1?">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Commits since Jan 1">
+<meta name="twitter:description" content="How many commits have you made on GitHub since January 1? Look up any username.">
+<meta name="twitter:image" content="https://commits-since-jan.pages.dev/og.png">
+<link rel="stylesheet" href="/style.css">
+<script src="/app.js" defer></script>
+</head>
+<body>
+<main class="wrap">
+  <header class="top">
+    <a href="/" class="brand"><svg width="22" height="22" viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 0c4.42 0 8 3.58 8 8a8.01 8.01 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"/></svg><span>Commits since Jan&nbsp;1</span></a>
+  </header>
+
+  <section class="hero">
+    <h1>How many commits have you made since <span class="accent">January&nbsp;1<span id="yr"></span></span>?</h1>
+    <form id="f" class="search" autocomplete="off">
+      <label for="q" class="sr">GitHub username</label>
+      <span class="at">@</span>
+      <input id="q" name="q" placeholder="github username" spellcheck="false" autocapitalize="off" maxlength="39" required>
+      <button type="submit">Count</button>
+    </form>
+    <div class="range" role="group" aria-label="Time range">
+      <label for="range">Range</label>
+      <select id="range">
+        <option value="ytd">Since Jan 1</option>
+        <option value="30d">Last 30 days</option>
+        <option value="90d">Last 90 days</option>
+        <option value="12m">Last 12 months</option>
+        <option value="custom">Since a date…</option>
+      </select>
+      <input type="date" id="from" hidden aria-label="Start date">
+    </div>
+    <p id="msg" class="msg" role="status" aria-live="polite"></p>
+  </section>
+
+  <section id="result" class="card" hidden>
+    <div class="who">
+      <img id="avatar" alt="" width="72" height="72" crossorigin="anonymous">
+      <div>
+        <div id="name" class="name"></div>
+        <a id="login" class="login" target="_blank" rel="noopener"></a>
+      </div>
+    </div>
+    <div class="big"><span id="num">0</span></div>
+    <div id="label" class="label"></div>
+    <div id="sub" class="sub"></div>
+    <div class="heat-wrap"><div id="heat" class="heat" role="img"></div></div>
+    <div class="legend"><span>Less</span><i class="l0"></i><i class="l1"></i><i class="l2"></i><i class="l3"></i><i class="l4"></i><span>More</span></div>
+    <p id="note" class="note"></p>
+  </section>
+
+  <section id="share" class="share" hidden>
+    <button id="shot" class="btn primary" type="button">Share screenshot</button>
+    <button id="native" class="btn primary" type="button" hidden>Share link…</button>
+    <a id="sx" class="btn" target="_blank" rel="noopener">X / Twitter</a>
+    <a id="sli" class="btn" target="_blank" rel="noopener">LinkedIn</a>
+    <a id="sbs" class="btn" target="_blank" rel="noopener">Bluesky</a>
+    <a id="srd" class="btn" target="_blank" rel="noopener">Reddit</a>
+    <a id="sfb" class="btn" target="_blank" rel="noopener">Facebook</a>
+    <button id="copy" class="btn" type="button">Copy link</button>
+    <button id="dl" class="btn" type="button">Download PNG</button>
+  </section>
+
+  <footer class="foot">Counts come from GitHub's public contribution data. Private work only shows up as a count, and only if the user made private contributions visible on their profile. Results are cached for about 6 hours. Not affiliated with GitHub.</footer>
+</main>
+</body>
+</html>

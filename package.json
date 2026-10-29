@@ -1,0 +1,21 @@
+{
+  "name": "commits-since-jan",
+  "version": "1.0.0",
+  "description": "How many commits have you made since January 1? Cloudflare Pages app.",
+  "scripts": {
+    "build": "rm -rf dist && cp -R public dist && esbuild src/index.ts --bundle --format=esm --target=es2022 --minify --outfile=dist/_worker.js",
+    "dev": "npm run build && wrangler pages dev",
+    "deploy": "npm run build && wrangler pages deploy --branch main",
+    "typecheck": "tsc --noEmit -p .",
+    "og:static": "node scripts/render-og.mjs"
+  },
+  "license": "ISC",
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261029.1",
+    "playwright": "^1.64.1",
+    "typescript": "^7.0.2",
+    "wrangler": "^4.155.0"
+  },
+  "private": true,
+  "type": "module"
+}
